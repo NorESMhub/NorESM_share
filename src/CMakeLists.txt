@@ -22,20 +22,15 @@ list(APPEND share_sources
   shr_string_mod.F90
   shr_timer_mod.F90
   shr_vmath_mod.F90
+  shr_mpi_mod.F90
+  shr_pio_mod.F90
   shr_wv_sat_mod.F90)
 
-# Build a separate list containing the mct wrapper and its dependencies. That
-# way, this list can be easily included in unit test builds that link to mct,
-# but excluded from builds that do not include mct.
-list(APPEND share_mct_sources
-  shr_mpi_mod.F90)
-
-# Build a separate list containing the pio wrapper and its dependencies. That
-# way, this list can be easily included in unit test builds that include PIO or
-# a stub of PIO, but excluded from builds that do not include PIO.
-list(APPEND share_pio_sources
-  shr_pio_mod.F90)
-
 sourcelist_to_parent(share_sources)
-sourcelist_to_parent(share_mct_sources)
-sourcelist_to_parent(share_pio_sources)
+
+if (DEFINED ENV{ESMF_ROOT})
+  list(APPEND CMAKE_MODULE_PATH $ENV{ESMF_ROOT}/cmake)
+endif()
+message("ESMF cmake is ${CMAKE_MODULE_PATH}")
+find_package(ESMF REQUIRED)
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${ESMF_F90COMPILEPATHS}")
