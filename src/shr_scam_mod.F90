@@ -1,4 +1,7 @@
 !===============================================================================
+! SVN $Id:
+! SVN $URL:
+!===============================================================================
 !BOP ===========================================================================
 !
 ! !MODULE: shr_scam_mod.F90 --- Module to handle single column mode share routines.
@@ -16,6 +19,7 @@
 module shr_scam_mod
 
 ! !USES:
+
    use shr_abort_mod,  only : abort => shr_abort_abort   ! system calls
    use shr_kind_mod,   only : R8=>SHR_KIND_R8,IN=>SHR_KIND_IN,CL=>SHR_KIND_CL
    use shr_log_mod,    only : s_loglev  => shr_log_Level
