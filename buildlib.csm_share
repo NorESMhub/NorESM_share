@@ -50,25 +50,20 @@ def buildlib(bldroot, installpath, case):
 ###############################################################################
 
     gmake_args = get_standard_makefile_args(case, shared_lib=True)
-    comp_interface = case.get_value("COMP_INTERFACE")
     srcroot = case.get_value("SRCROOT")
     caseroot = case.get_value("CASEROOT")
     libroot = case.get_value("LIBROOT")
 
-    if comp_interface == "mct":
-        expect(False, f"driver value of mct not supported")
-
     filepath = [os.path.join(caseroot,"SourceMods","src.share")]
-    filepath.append(os.path.join(srcroot,"components","cmeps", "cesm", "nuopc_cap_share"))
-    filepath.append(os.path.join(srcroot,"components","cmeps", "cesm", "flux_atmocn"))
 
-    filepath.extend([os.path.join(srcroot,"share","src"),
+    filepath.extend([os.path.join(srcroot,"components","cmeps", "cesm", "nuopc_cap_share"),
+                     os.path.join(srcroot,"components","cmeps", "cesm", "flux_atmocn"),
+                     os.path.join(srcroot,"share","src"),
                      os.path.join(srcroot,"share","src","water_isotopes"),
                      os.path.join(srcroot,"share","RandNum","src"),
                      os.path.join(srcroot,"share","RandNum","src","dsfmt_f03"),
                      os.path.join(srcroot,"share","RandNum","src","kissvec"),
                      os.path.join(srcroot,"share","RandNum","src","mt19937")])
-
     #
     # Provide an interface to the CrayLabs SmartSim tools, if the tools are not used
     # then build a stub interface.  See cime/tools/smartsim/README.md for details
@@ -89,7 +84,7 @@ def buildlib(bldroot, installpath, case):
     filepath.append(fortran_src_path)
 
     ninst_value = case.get_value("NINST_VALUE")
-    libdir = os.path.join(bldroot, comp_interface, "esmf", ninst_value, "csm_share")
+    libdir = os.path.join(bldroot, "nuopc", "esmf", ninst_value, "csm_share")
     if not os.path.isdir(libdir):
         os.makedirs(libdir)
 
@@ -119,7 +114,7 @@ def buildlib(bldroot, installpath, case):
     if case.get_value("COMP_OCN") == "nemo":
         multiinst_cppdefs += " -DNEMO_IN_CCSM "
 
-    installdir = os.path.join(installpath, comp_interface, "esmf", ninst_value)
+    installdir = os.path.join(installpath, "nuopc", "esmf", ninst_value)
     for ndir in ("lib", "include"):
         if not os.path.isdir(os.path.join(installdir,ndir)):
             os.makedirs(os.path.join(installdir,ndir))
