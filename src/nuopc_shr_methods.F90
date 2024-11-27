@@ -18,7 +18,6 @@ module nuopc_shr_methods
   use ESMF         , only : ESMF_Time, ESMF_TimeGet, ESMF_TimeSet, ESMF_ClockGetAlarm
   use ESMF         , only : ESMF_TimeInterval, ESMF_TimeIntervalSet, ESMF_TimeIntervalGet
   use ESMF         , only : ESMF_VM, ESMF_VMGet, ESMF_VMBroadcast, ESMF_VMGetCurrent
-  use ESMF         , only : ESMF_ClockGetNextTime
   use NUOPC        , only : NUOPC_CompAttributeGet
   use NUOPC_Model  , only : NUOPC_ModelGet
   use shr_kind_mod , only : r8 => shr_kind_r8, cl=>shr_kind_cl, cs=>shr_kind_cs
@@ -41,12 +40,12 @@ module nuopc_shr_methods
   public  :: shr_get_rpointer_name
   private :: timeInit
   private :: field_getfldptr
-  
+
   ! Module data
-  
+
   ! Clock and alarm options shared with esm_time_mod along with dtime_driver which is initialized there.
   ! Dtime_driver is needed here for setting alarm options which use the nstep option and is a module variable
-  ! to avoid requiring a change in all model caps. 
+  ! to avoid requiring a change in all model caps.
   character(len=*), public, parameter :: &
        optNONE           = "none"    , &
        optNever          = "never"   , &
@@ -131,7 +130,7 @@ contains
 
 !===============================================================================
   subroutine set_component_logging(gcomp, maintask, logunit, shrlogunit, rc)
-    use NUOPC, only: NUOPC_CompAttributeSet, NUOPC_CompAttributeAdd  
+    use NUOPC, only: NUOPC_CompAttributeSet, NUOPC_CompAttributeAdd
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
     logical, intent(in)  :: maintask
@@ -146,7 +145,7 @@ contains
     integer :: inst_index ! Not used here
     integer :: n
     character(len=CL) :: name
-    character(len=*), parameter :: subname = "("//__FILE__//": set_component_logging)"   
+    character(len=*), parameter :: subname = "("//__FILE__//": set_component_logging)"
     !-----------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -169,7 +168,7 @@ contains
     else
        logUnit = 6
     endif
-    
+
     call ESMF_GridCompGet(gcomp, name=name, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
@@ -560,7 +559,7 @@ contains
     else
        NextAlarm = CurrTime
     endif
-    
+
     ! Determine calendar
     call ESMF_ClockGet(clock, calendar=cal)
 
@@ -682,9 +681,9 @@ contains
     case (optEnd)
        call ESMF_ClockGetAlarm(clock, alarmname="alarm_stop", alarm=alarm, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       call ESMF_AlarmGet(alarm, ringTime=NextAlarm, rc=rc) 
+       call ESMF_AlarmGet(alarm, ringTime=NextAlarm, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       
+
     case default
        call ESMF_LogWrite(subname//'unknown option '//trim(option), ESMF_LOGMSG_ERROR)
        rc = ESMF_FAILURE
@@ -708,7 +707,7 @@ contains
     alarm = ESMF_AlarmCreate( name=lalarmname, clock=clock, ringTime=NextAlarm, &
          ringInterval=AlarmInterval, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-    
+
     ! Advance model clock to trigger alarm then reset model clock back to currtime
     if (present(advance_clock)) then
        if (advance_clock) then
@@ -786,7 +785,7 @@ contains
 
     do i=1,ncomps
        comp = compname(i)//"_cpl_dt"
-    
+
        call NUOPC_CompAttributeGet(gcomp, name=comp, isPresent=is_present, isSet=is_set, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -818,22 +817,22 @@ contains
     character(len=*), intent(out) :: rpfile
     character(len=*), intent(in) :: mode
     integer, intent(out) :: rc
-    
+
     ! local vars
     integer :: yr, mon, day
     character(len=16) timestr
     logical :: isPresent
     character(len=ESMF_MAXSTR)  :: inst_suffix
-    
+
     character(len=*), parameter :: subname='shr_get_rpointer_name'
-    
+
     rc = ESMF_SUCCESS
 
     inst_suffix = ""
     call NUOPC_CompAttributeGet(gcomp, name='inst_suffix', isPresent=isPresent, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if(ispresent) call NUOPC_CompAttributeGet(gcomp, name='inst_suffix', value=inst_suffix, rc=rc)
-    
+
     yr = ymd/10000
     mon = (ymd - yr*10000)/100
     day = (ymd - yr*10000 - mon*100)
