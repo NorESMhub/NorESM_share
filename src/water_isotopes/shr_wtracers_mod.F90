@@ -186,8 +186,9 @@ contains
       if (present(variables_not_checked_in)) then
          variables_not_checked = variables_not_checked_in
       else
+         ! No variables_not_checked for this run; deallocate to clear out any setting from
+         ! previous tests.
          if (allocated(variables_not_checked)) deallocate(variables_not_checked)
-         allocate(variables_not_checked(0))
       end if
 
       water_tracers_initialized = .true.
@@ -316,8 +317,11 @@ contains
            isPresent=isPresent, isSet=isSet, rc=rc)
       if (chkerr(rc,__LINE__,u_FILE_u)) return
       if (.not. isPresent .or. .not. isSet .or. len_trim(cvalue) == 0) then
+         ! For typical code paths, it should never be the case that variables_not_checked
+         ! is already allocated. But check this and deallocate it to be safe in case there
+         ! is some unusual code path where it was set at one point but is no longer set -
+         ! in which case we want to clear out the old list.
          if (allocated(variables_not_checked)) deallocate(variables_not_checked)
-         allocate(variables_not_checked(0))
       else
          call shr_string_listGetAllNames(cvalue, variables_not_checked, rc=localrc)
          if (localrc /= 0) then
@@ -436,7 +440,7 @@ contains
    end subroutine shr_wtracers_print
 
    !-----------------------------------------------------------------------
-   function shr_wtracers_should_skip_check(variable_name)
+   pure function shr_wtracers_should_skip_check(variable_name)
       !
       ! !DESCRIPTION:
       ! Return true if the given variable name should skip tracer-ratio checks
