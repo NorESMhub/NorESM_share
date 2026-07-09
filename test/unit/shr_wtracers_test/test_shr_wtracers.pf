@@ -49,6 +49,7 @@ contains
       integer :: rc
       real(r8) :: bulk(4)
       real(r8) :: tracers(3, 4)
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -61,7 +62,8 @@ contains
       tracers(:,:) = 0._r8
 
       ! The test passes if the following call runs successfully without aborting
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_both0
 
    @Test
@@ -73,6 +75,7 @@ contains
       real(r8) :: tracers(3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -87,7 +90,8 @@ contains
       end do
 
       ! The test passes if the following call runs successfully without aborting
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_correct
 
    @Test
@@ -99,6 +103,7 @@ contains
       real(r8) :: tracers(3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -113,8 +118,9 @@ contains
       end do
       tracers(2,3) = tracers(2,3) * 1.1_r8
 
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
       @assertExceptionRaised("ABORTED: shr_wtracers_check_tracer_ratios ERROR: tracer does not agree with bulk water for variable 'test', tracer 'tracer2', at index 3")
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_differ
 
    @Test
@@ -126,6 +132,7 @@ contains
       real(r8) :: tracers(3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -140,8 +147,9 @@ contains
       end do
       tracers(2,3) = 0._r8
 
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
       @assertExceptionRaised("ABORTED: shr_wtracers_check_tracer_ratios ERROR: tracer does not agree with bulk water for variable 'test', tracer 'tracer2', at index 3")
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_tracer0
 
    @Test
@@ -153,6 +161,7 @@ contains
       real(r8) :: tracers(3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -167,8 +176,9 @@ contains
       end do
       bulk(3) = 0._r8
 
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
       @assertExceptionRaised("ABORTED: shr_wtracers_check_tracer_ratios ERROR: tracer does not agree with bulk water for variable 'test', tracer 'tracer1', at index 3")
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_bulk0
 
    @Test
@@ -180,6 +190,7 @@ contains
       real(r8) :: tracers(3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -196,7 +207,8 @@ contains
       tracers(:,3) = nan
 
       ! The test passes if the following call runs successfully without aborting
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_bothnan
 
    @Test
@@ -208,6 +220,7 @@ contains
       real(r8) :: tracers(3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -222,9 +235,77 @@ contains
       end do
       tracers(2,3) = nan
 
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
       @assertExceptionRaised("ABORTED: shr_wtracers_check_tracer_ratios ERROR: tracer does not agree with bulk water for variable 'test', tracer 'tracer2', at index 3")
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_tracernan
+
+   @Test
+   subroutine test_shr_wtracers_skiplist_other_name(this)
+      ! With a non-empty skip list that does not contain the current variable, a differing
+      ! tracer ratio should still raise an exception (and the check is not skipped)
+      !
+      ! Note that the setup for this test matches
+      ! test_shr_wtracers_check_tracer_ratios_differ, except for the setting of
+      ! variables_not_checked
+      class(TestShrWtracers), intent(inout) :: this
+      integer :: rc
+      real(r8) :: bulk(4)
+      real(r8) :: tracers(3, 4)
+      real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
+      integer :: i
+      logical :: check_skipped
+      character(len=160) :: expected_msg
+
+      call shr_wtracers_init_directly_for_testing( &
+           water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
+           water_tracer_species = [WATER_SPECIES_NAME_BULK, WATER_SPECIES_NAME_BULK, WATER_SPECIES_NAME_BULK], &
+           water_tracer_initial_ratios = ratios, &
+           variables_not_checked_in = [character(len=6) :: "other1", "other2", "other3"], &
+           rc = rc)
+      @assertEqual(ESMF_SUCCESS, rc)
+
+      bulk(:) = [1._r8, 2._r8, 3._r8, 4._r8]
+      do i = 1, 3
+         tracers(i,:) = ratios(i) * bulk(:)
+      end do
+      tracers(2,3) = tracers(2,3) * 1.1_r8
+
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
+      expected_msg = "ABORTED: shr_wtracers_check_tracer_ratios ERROR: tracer does not agree with bulk water for variable 'test', tracer 'tracer2', at index 3"
+      @assertExceptionRaised(expected_msg)
+      @assertFalse(check_skipped)
+   end subroutine test_shr_wtracers_skiplist_other_name
+
+   @Test
+   subroutine test_shr_wtracers_skiplist_matching_name(this)
+      ! With a skip list that contains the current variable, a differing tracer ratio
+      ! should NOT raise an exception, and check_skipped should be true
+      class(TestShrWtracers), intent(inout) :: this
+      integer :: rc
+      real(r8) :: bulk(4)
+      real(r8) :: tracers(3, 4)
+      real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
+      integer :: i
+      logical :: check_skipped
+
+      call shr_wtracers_init_directly_for_testing( &
+           water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
+           water_tracer_species = [WATER_SPECIES_NAME_BULK, WATER_SPECIES_NAME_BULK, WATER_SPECIES_NAME_BULK], &
+           water_tracer_initial_ratios = ratios, &
+           variables_not_checked_in = [character(len=6) :: "other1", "test", "other3"], &
+           rc = rc)
+      @assertEqual(ESMF_SUCCESS, rc)
+
+      bulk(:) = [1._r8, 2._r8, 3._r8, 4._r8]
+      do i = 1, 3
+         tracers(i,:) = ratios(i) * bulk(:)
+      end do
+      tracers(2,3) = tracers(2,3) * 1.1_r8
+
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
+      @assertTrue(check_skipped)
+   end subroutine test_shr_wtracers_skiplist_matching_name
 
    ! ------------------------------------------------------------------------
    ! Tests of shr_wtracers_check_tracer_ratios with 2-d bulk arrays
@@ -239,6 +320,7 @@ contains
       real(r8) :: tracers(2, 3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i, j
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -256,7 +338,8 @@ contains
       end do
 
       ! The test passes if the following call runs successfully without aborting
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_2d_correct
 
    @Test
@@ -268,6 +351,7 @@ contains
       real(r8) :: tracers(2, 3, 4)
       real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
       integer :: i, j
+      logical :: check_skipped
 
       call shr_wtracers_init_directly_for_testing( &
            water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
@@ -285,8 +369,47 @@ contains
       end do
       tracers(2,2,3) = tracers(2,2,3) * 1.1_r8
 
-      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test")
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
       @assertExceptionRaised("ABORTED: shr_wtracers_check_tracer_ratios ERROR: tracer does not agree with bulk water for variable 'test', tracer 'tracer2', at index 3")
+      @assertFalse(check_skipped)
    end subroutine test_shr_wtracers_check_tracer_ratios_2d_differ
+
+   @Test
+   subroutine test_shr_wtracers_skiplist_matching_name_2d(this)
+      ! With a 2-d bulk array, a differing tracer ratio should NOT raise an exception when
+      ! the variable name is in the list of variables to skip, and check_skipped should be
+      ! true
+      !
+      ! Note that the setup for this test matches
+      ! test_shr_wtracers_check_tracer_ratios_2d_differ, except for the setting of
+      ! variables_not_checked
+      class(TestShrWtracers), intent(inout) :: this
+      integer :: rc
+      real(r8) :: bulk(2, 4)
+      real(r8) :: tracers(2, 3, 4)
+      real(r8), parameter :: ratios(3) = [2._r8, 3._r8, 4._r8]
+      integer :: i, j
+      logical :: check_skipped
+
+      call shr_wtracers_init_directly_for_testing( &
+           water_tracer_names = ["tracer1", "tracer2", "tracer3"], &
+           water_tracer_species = [WATER_SPECIES_NAME_BULK, WATER_SPECIES_NAME_BULK, WATER_SPECIES_NAME_BULK], &
+           water_tracer_initial_ratios = ratios, &
+           variables_not_checked_in = [character(len=6) :: "other1", "test", "other3"], &
+           rc = rc)
+      @assertEqual(ESMF_SUCCESS, rc)
+
+      bulk(1,:) = [1._r8, 2._r8, 3._r8, 4._r8]
+      bulk(2,:) = [5._r8, 6._r8, 7._r8, 8._r8]
+      do i = 1, 3
+         do j = 1, 2
+            tracers(j,i,:) = ratios(i) * bulk(j,:)
+         end do
+      end do
+      tracers(2,2,3) = tracers(2,2,3) * 1.1_r8
+
+      call shr_wtracers_check_tracer_ratios(tracers, bulk, "test", check_skipped=check_skipped)
+      @assertTrue(check_skipped)
+   end subroutine test_shr_wtracers_skiplist_matching_name_2d
 
 end module test_shr_wtracers
