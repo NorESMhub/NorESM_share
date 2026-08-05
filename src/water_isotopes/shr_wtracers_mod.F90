@@ -16,7 +16,7 @@ module shr_wtracers_mod
    !---------------------------------------------------------------------
 
    use shr_kind_mod      , only : r8=>SHR_KIND_R8
-   use shr_kind_mod      , only : CS=>SHR_KIND_CS, CM=>SHR_KIND_CM, CX=>SHR_KIND_CX, CXX=>SHR_KIND_CXX
+   use shr_kind_mod      , only : CS=>SHR_KIND_CS, CM=>SHR_KIND_CM, CL=>SHR_KIND_CL, CX=>SHR_KIND_CX, CXX=>SHR_KIND_CXX
    use shr_log_mod       , only : shr_log_error
    use shr_log_mod       , only : s_logunit=>shr_log_Unit
    use shr_log_mod       , only : s_loglev=>shr_log_Level
@@ -65,6 +65,7 @@ module shr_wtracers_mod
    private :: shr_wtracers_set_initial_ratios ! Set real-valued initial ratios from strings
    private :: shr_wtracers_print              ! Print tracer info to log
    private :: shr_wtracers_check_tracer_num   ! Check a tracer_num argument and abort if invalid
+   private :: shr_wtracers_should_skip_check  ! Return true if a variable should skip tracer-ratio checks
 
    !--------------------------------------------------------------------------
    ! Public data
@@ -97,6 +98,7 @@ module shr_wtracers_mod
    integer, allocatable :: tracer_species_types(:)
    character(len=WTRACER_SPECIES_NAME_MAXLEN), allocatable :: tracer_species_names(:)
    real(r8), allocatable :: tracer_initial_ratios(:)
+   character(len=CL), allocatable :: variables_not_checked(:)
    logical :: water_tracers_initialized = .false.
 
    character(len=*), parameter :: u_FILE_u = &
@@ -142,7 +144,8 @@ contains
 
    !-----------------------------------------------------------------------
    subroutine shr_wtracers_init_directly_for_testing( &
-              water_tracer_names, water_tracer_species, water_tracer_initial_ratios, rc)
+              water_tracer_names, water_tracer_species, water_tracer_initial_ratios, &
+              variables_not_checked_in, rc)
       !
       ! !DESCRIPTION:
       ! Initialize water tracer information directly for the sake of unit testing
@@ -153,6 +156,7 @@ contains
       character(len=*), intent(in) :: water_tracer_names(:)
       character(len=*), intent(in) :: water_tracer_species(:)  ! expected to be uppercase
       real(r8), intent(in) :: water_tracer_initial_ratios(:)
+      character(len=*), intent(in), optional :: variables_not_checked_in(:)
       integer, intent(out) :: rc
       !
       ! !LOCAL VARIABLES
@@ -178,6 +182,14 @@ contains
       call shr_wtracers_set_species_types(rc=rc)
       if (chkerr(rc,__LINE__,u_FILE_u)) return
       tracer_initial_ratios = water_tracer_initial_ratios
+
+      if (present(variables_not_checked_in)) then
+         variables_not_checked = variables_not_checked_in
+      else
+         ! No variables_not_checked for this run; deallocate to clear out any setting from
+         ! previous tests.
+         if (allocated(variables_not_checked)) deallocate(variables_not_checked)
+      end if
 
       water_tracers_initialized = .true.
 
@@ -206,12 +218,14 @@ contains
       ! !DESCRIPTION:
       ! Parse water tracer NUOPC attributes
       !
-      ! This parses three attributes, which are all colon-delimited strings, and which all
-      ! must have the same number of elements (this requirement is checked here):
+      ! This parses four attributes, which are all colon-delimited strings, and which all
+      ! except water_tracers_variables_not_checked must have the same number of elements
+      ! (this requirement is checked here):
       ! - water_tracer_names (arbitrary user-defined names)
       ! - water_tracer_species (corresponding to predetermined strings like "H218O", or
       !   the string given by WATER_SPECIES_NAME_BULK)
       ! - water_tracer_initial_ratios (strings that are convertable to real numbers)
+      ! - water_tracers_variables_not_checked (tracer variable names for which checks should be skipped)
       !
       ! !ARGUMENTS
       type(ESMF_GridComp), intent(in) :: driver
@@ -297,6 +311,23 @@ contains
 
          call shr_wtracers_set_initial_ratios(tracer_initial_ratios_str, rc=rc)
          if (chkerr(rc,__LINE__,u_FILE_u)) return
+      end if
+
+      call NUOPC_CompAttributeGet(driver, name="water_tracers_variables_not_checked", value=cvalue, &
+           isPresent=isPresent, isSet=isSet, rc=rc)
+      if (chkerr(rc,__LINE__,u_FILE_u)) return
+      if (.not. isPresent .or. .not. isSet .or. len_trim(cvalue) == 0) then
+         ! For typical code paths, it should never be the case that variables_not_checked
+         ! is already allocated. But check this and deallocate it to be safe in case there
+         ! is some unusual code path where it was set at one point but is no longer set -
+         ! in which case we want to clear out the old list.
+         if (allocated(variables_not_checked)) deallocate(variables_not_checked)
+      else
+         call shr_string_listGetAllNames(cvalue, variables_not_checked, rc=localrc)
+         if (localrc /= 0) then
+            call shr_log_error(subname//": error processing water_tracers_variables_not_checked", rc=rc)
+            return
+         end if
       end if
 
    end subroutine shr_wtracers_parse_attributes
@@ -407,6 +438,29 @@ contains
       end if
 
    end subroutine shr_wtracers_print
+
+   !-----------------------------------------------------------------------
+   pure function shr_wtracers_should_skip_check(variable_name)
+      !
+      ! !DESCRIPTION:
+      ! Return true if the given variable name should skip tracer-ratio checks
+      !
+      ! !ARGUMENTS
+      character(len=*), intent(in) :: variable_name
+      logical :: shr_wtracers_should_skip_check
+      !
+      ! !LOCAL VARIABLES
+      integer :: i
+      !-----------------------------------------------------------------------
+      shr_wtracers_should_skip_check = .false.
+      if (.not. allocated(variables_not_checked)) return
+      do i = 1, size(variables_not_checked)
+         if (variables_not_checked(i) == variable_name) then
+            shr_wtracers_should_skip_check = .true.
+            return
+         end if
+      end do
+   end function shr_wtracers_should_skip_check
 
    !-----------------------------------------------------------------------
    subroutine shr_wtracers_check_tracer_num(tracer_num, subname)
@@ -658,7 +712,7 @@ contains
    end function shr_wtracers_get_initial_ratio
 
    !-----------------------------------------------------------------------
-   subroutine shr_wtracers_check_tracer_ratios_1d(tracers, bulk, name, extra_dim_index)
+   subroutine shr_wtracers_check_tracer_ratios_1d(tracers, bulk, variable_name, check_skipped, extra_dim_index)
       !
       ! !DESCRIPTION:
       ! Check tracer ratios (tracer/bulk) against expectations
@@ -669,10 +723,14 @@ contains
       ! ratios: in general, water tracers will deviate from their initial, fixed ratios,
       ! and so it makes no sense to perform these checks since they will always fail.
       !
+      ! If the given variable_name is in the list of variables to skip, the check is
+      ! skipped and check_skipped is set to true.
+      !
       ! !ARGUMENTS
       real(r8), intent(in) :: tracers(:,:)  ! dimensioned [tracerNum, gridcell]
       real(r8), intent(in) :: bulk(:)
-      character(len=*), intent(in) :: name  ! for diagnostic output
+      character(len=*), intent(in) :: variable_name  ! for diagnostic output; check is skipped if this name is in variables_not_checked
+      logical, intent(out) :: check_skipped  ! true if the check was skipped (variable_name in variables_not_checked)
       integer, intent(in), optional :: extra_dim_index  ! index of extra dimension (for error messages)
       !
       ! !LOCAL VARIABLES
@@ -688,8 +746,13 @@ contains
       ! In some error messages, it makes more sense to print the generic name:
       character(len=*), parameter :: subname_generic='shr_wtracers_check_tracer_ratios'
       !-----------------------------------------------------------------------
+      check_skipped = .false.
       if (.not. water_tracers_initialized) then
          call shr_sys_abort(subname//" ERROR: water tracers not yet initialized")
+      end if
+      if (shr_wtracers_should_skip_check(variable_name)) then
+         check_skipped = .true.
+         return
       end if
       if (size(tracers, 1) /= num_tracers) then
          write(msg, '(A,I0,A,I0)') &
@@ -737,7 +800,7 @@ contains
 
       if (.not. arrays_equal) then
          write(s_logunit, '(A,A)') subname_generic, " ERROR: tracer does not agree with bulk water"
-         write(s_logunit, '(A,A)') "Variable: ", trim(name)
+         write(s_logunit, '(A,A)') "Variable: ", trim(variable_name)
          if (present(extra_dim_index)) then
             write(s_logunit, '(A,I0)') "Extra dimension index: ", extra_dim_index
          end if
@@ -752,14 +815,14 @@ contains
          end if
          write(msg, '(A,I0)') &
               subname_generic//" ERROR: tracer does not agree with bulk water for variable '"// &
-              trim(name)//"', tracer '"//trim(tracer_names(diff_tracer))//"', at index ", diff_loc
+              trim(variable_name)//"', tracer '"//trim(tracer_names(diff_tracer))//"', at index ", diff_loc
          call shr_sys_abort(trim(msg))
       end if
 
    end subroutine shr_wtracers_check_tracer_ratios_1d
 
    !-----------------------------------------------------------------------
-   subroutine shr_wtracers_check_tracer_ratios_2d(tracers, bulk, name)
+   subroutine shr_wtracers_check_tracer_ratios_2d(tracers, bulk, variable_name, check_skipped)
       !
       ! !DESCRIPTION:
       ! Check tracer ratios (tracer/bulk) against expectations for 2-d bulk arrays
@@ -773,19 +836,29 @@ contains
       ! ratios: in general, water tracers will deviate from their initial, fixed ratios,
       ! and so it makes no sense to perform these checks since they will always fail.
       !
+      ! If the given variable_name is in the list of variables to skip, the check is
+      ! skipped and check_skipped is set to true.
+      !
       ! !ARGUMENTS
       real(r8), intent(in) :: tracers(:,:,:)  ! dimensioned [ungriddedDim, tracerNum, gridcell]
       real(r8), intent(in) :: bulk(:,:)       ! dimensioned [ungriddedDim, gridcell]
-      character(len=*), intent(in) :: name    ! for diagnostic output
+      character(len=*), intent(in) :: variable_name    ! for diagnostic output; check is skipped if this name is in variables_not_checked
+      logical, intent(out) :: check_skipped  ! true if the check was skipped (variable_name in variables_not_checked)
       !
       ! !LOCAL VARIABLES
       integer :: i
+      logical :: check_skipped_1d
       character(len=CX) :: msg
 
       character(len=*), parameter :: subname='shr_wtracers_check_tracer_ratios_2d'
       !-----------------------------------------------------------------------
+      check_skipped = .false.
       if (.not. water_tracers_initialized) then
          call shr_sys_abort(subname//" ERROR: water tracers not yet initialized")
+      end if
+      if (shr_wtracers_should_skip_check(variable_name)) then
+         check_skipped = .true.
+         return
       end if
       if (size(tracers, 1) /= size(bulk, 1)) then
          write(msg, '(A,I0,A,I0)') &
@@ -807,8 +880,13 @@ contains
       end if
 
       do i = 1, size(bulk, 1)
-         call shr_wtracers_check_tracer_ratios_1d(tracers(i,:,:), bulk(i,:), name, &
-              extra_dim_index=i)
+         call shr_wtracers_check_tracer_ratios_1d(tracers(i,:,:), bulk(i,:), variable_name, &
+              check_skipped=check_skipped_1d, extra_dim_index=i)
+         ! We set the check_skipped output to true if the check was skipped for *any* 1d
+         ! level. (In practice, this shouldn't happen unless we introduce new scenarios
+         ! where a variable is skipped, so that the pre-check at the top of this 2d
+         ! routine doesn't check all possible scenarios.)
+         if (check_skipped_1d) check_skipped = .true.
       end do
 
    end subroutine shr_wtracers_check_tracer_ratios_2d
